@@ -77,19 +77,20 @@ function App() {
       const index = prevMonitors.findIndex((monitor) => monitor.id === id);
       const updatedMonitors = prevMonitors.filter((monitor) => monitor.id !== id);
   
-      // Ensure state update happens after monitors are updated
-      setTimeout(() => {
-        if (updatedMonitors.length > 0) {
-          setSelectedMonitor(updatedMonitors[Math.min(index, updatedMonitors.length - 1)].id);
+      // Select next monitor logic
+      if (updatedMonitors.length > 0) {
+        if (index < updatedMonitors.length) {
+          setSelectedMonitor(updatedMonitors[index].id); // Select next monitor
         } else {
-          setSelectedMonitor(null);
+          setSelectedMonitor(updatedMonitors[updatedMonitors.length - 1].id); // Select previous if last was deleted
         }
-      }, 50); // Slight delay to allow UI transition smoothly
+      } else {
+        setSelectedMonitor(null); // No monitors left
+      }
   
       return updatedMonitors;
     });
   };
-  
   
 
   const extractRelevantData = (data, id) => {
