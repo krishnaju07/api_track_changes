@@ -13,7 +13,15 @@ function App() {
     // Load saved monitors from localStorage
     const savedMonitors = localStorage.getItem('apiMonitors');
     if (savedMonitors) {
-      setMonitors(JSON.parse(savedMonitors));
+      const parsedMonitors = JSON.parse(savedMonitors);
+      setMonitors(parsedMonitors);
+
+      // Restart monitoring for active monitors
+      parsedMonitors.forEach(monitor => {
+        if (monitor.isRunning) {
+          startMonitor(monitor);
+        }
+      });
     }
   }, []);
 
@@ -22,7 +30,6 @@ function App() {
     localStorage.setItem('apiMonitors', JSON.stringify(monitors));
   }, [monitors]);
 
-  // Cleanup function for intervals
   const clearMonitorInterval = (monitorId) => {
     if (intervals[monitorId]) {
       clearInterval(intervals[monitorId]);
@@ -53,7 +60,6 @@ function App() {
     setMonitors(prevMonitors =>
       prevMonitors.map(monitor => {
         if (monitor.id === id) {
-          // If we're updating the interval or stopping the monitor, cleanup the existing interval
           if ('interval' in updates || ('isRunning' in updates && !updates.isRunning)) {
             clearMonitorInterval(id);
           }
@@ -119,14 +125,14 @@ function App() {
           'Accept': '*/*',
         }
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       let data;
       const text = await response.text();
-      
+
       try {
         data = JSON.parse(text);
       } catch (e) {
@@ -161,7 +167,7 @@ function App() {
             current: currentSlug
           }
         };
-        
+
         updateMonitor(monitor.id, {
           differences: difference,
           previousData: relevantData
@@ -173,26 +179,25 @@ function App() {
     } catch (error) {
       toast.error(`Error in ${monitor.name}: ${error.message}`);
       console.error('Error:', error);
-      // Don't stop the monitor on error, let it continue trying
     }
   };
 
-  // Handle starting/stopping monitors
+  const startMonitor = (monitor) => {
+    fetchData(monitor);
+    const intervalId = setInterval(() => fetchData(monitor), monitor.interval * 1000);
+    setIntervals(prev => ({ ...prev, [monitor.id]: intervalId }));
+    updateMonitor(monitor.id, { isRunning: true });
+  };
+
   const toggleMonitor = (monitor) => {
     if (!monitor.isRunning) {
-      // Start the monitor
-      fetchData(monitor); // Initial fetch
-      const intervalId = setInterval(() => fetchData(monitor), monitor.interval * 1000);
-      setIntervals(prev => ({ ...prev, [monitor.id]: intervalId }));
-      updateMonitor(monitor.id, { isRunning: true });
+      startMonitor(monitor);
     } else {
-      // Stop the monitor
       clearMonitorInterval(monitor.id);
       updateMonitor(monitor.id, { isRunning: false });
     }
   };
 
-  // Cleanup intervals on unmount
   useEffect(() => {
     return () => {
       Object.keys(intervals).forEach(clearMonitorInterval);
