@@ -221,16 +221,16 @@ function App() {
   const selectedMonitorData = monitors.find(m => m.id === selectedMonitor);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-4 sm:p-6 md:p-8">
       <Toaster position="top-right" />
-      
+  
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="max-w-6xl mx-auto"
       >
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+        <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
+          <h1 className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
             API Monitor
           </h1>
           <motion.button
@@ -242,14 +242,14 @@ function App() {
             <FaPlus /> <span>Add Monitor</span>
           </motion.button>
         </div>
-
-        <div className="grid grid-cols-12 gap-6">
+  
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           {/* Sidebar */}
-          <div className="col-span-3 bg-gray-800 rounded-xl p-4 h-[calc(100vh-12rem)] overflow-y-auto">
+          <div className="col-span-12 md:col-span-3 bg-gray-800 rounded-xl p-4 max-h-[50vh] md:h-[calc(100vh-12rem)] overflow-y-auto">
             <h2 className="text-xl font-semibold mb-4">Monitors</h2>
             <div className="space-y-2">
               <AnimatePresence>
-                {monitors.map(monitor => (
+                {monitors.map((monitor) => (
                   <motion.div
                     key={monitor.id}
                     initial={{ opacity: 0, x: -20 }}
@@ -264,32 +264,32 @@ function App() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-medium">{monitor.name}</span>
-                      <div className="flex items-center space-x-2">
-                        {monitor.isRunning && (
-                          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                        )}
-                      </div>
+                      {monitor.isRunning && (
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                      )}
                     </div>
                   </motion.div>
                 ))}
               </AnimatePresence>
             </div>
           </div>
-
+  
           {/* Main Content */}
-          <div className="col-span-9">
+          <div className="col-span-12 md:col-span-9">
             {selectedMonitorData ? (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="bg-gray-800 rounded-xl p-8 shadow-2xl"
+                className="bg-gray-800 rounded-xl p-6 md:p-8 shadow-2xl"
               >
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
                   <input
                     type="text"
                     value={selectedMonitorData.name}
-                    onChange={(e) => updateMonitor(selectedMonitorData.id, { name: e.target.value })}
-                    className="text-2xl font-bold bg-transparent border-none focus:outline-none"
+                    onChange={(e) =>
+                      updateMonitor(selectedMonitorData.id, { name: e.target.value })
+                    }
+                    className="text-2xl font-bold bg-transparent border-none focus:outline-none w-full sm:w-auto"
                   />
                   <motion.button
                     whileHover={{ scale: 1.05 }}
@@ -300,35 +300,41 @@ function App() {
                     <FaTrash />
                   </motion.button>
                 </div>
-
+  
                 <div className="space-y-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex-1">
+                  <div className="flex flex-wrap items-center space-x-4">
+                    <div className="flex-1 min-w-[250px]">
                       <label className="flex items-center space-x-2 text-sm font-medium mb-2">
                         <FaLink /> <span>API URL</span>
                       </label>
                       <input
                         type="text"
                         value={selectedMonitorData.apiUrl}
-                        onChange={(e) => updateMonitor(selectedMonitorData.id, { apiUrl: e.target.value })}
+                        onChange={(e) =>
+                          updateMonitor(selectedMonitorData.id, { apiUrl: e.target.value })
+                        }
                         className="w-full bg-gray-700 rounded-lg p-3 focus:ring-2 focus:ring-blue-500"
                         placeholder="https://api.example.com/endpoint"
                       />
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
+  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">ID/Name Filter (Optional)</label>
+                      <label className="block text-sm font-medium mb-2">
+                        ID/Name Filter (Optional)
+                      </label>
                       <input
                         type="text"
                         value={selectedMonitorData.filterId}
-                        onChange={(e) => updateMonitor(selectedMonitorData.id, { filterId: e.target.value })}
+                        onChange={(e) =>
+                          updateMonitor(selectedMonitorData.id, { filterId: e.target.value })
+                        }
                         className="w-full bg-gray-700 rounded-lg p-3 focus:ring-2 focus:ring-blue-500"
                         placeholder="Enter ID or name to filter"
                       />
                     </div>
-
+  
                     <div>
                       <label className="flex items-center space-x-2 text-sm font-medium mb-2">
                         <FaClock /> <span>Check Interval (seconds)</span>
@@ -336,13 +342,15 @@ function App() {
                       <input
                         type="number"
                         value={selectedMonitorData.interval}
-                        onChange={(e) => updateMonitor(selectedMonitorData.id, { interval: parseInt(e.target.value, 10) })}
+                        onChange={(e) =>
+                          updateMonitor(selectedMonitorData.id, { interval: parseInt(e.target.value, 10) })
+                        }
                         className="w-full bg-gray-700 rounded-lg p-3 focus:ring-2 focus:ring-blue-500"
                         min="1"
                       />
                     </div>
                   </div>
-
+  
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -363,15 +371,15 @@ function App() {
                       </>
                     )}
                   </motion.button>
-
+  
                   {selectedMonitorData.differences && (
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="mt-8 p-4 bg-gray-700 rounded-lg"
+                      className="mt-8 p-4 bg-gray-700 rounded-lg overflow-x-auto"
                     >
                       <h2 className="text-xl font-semibold mb-4">Latest Change Detected</h2>
-                      <pre className="whitespace-pre-wrap overflow-x-auto">
+                      <pre className="whitespace-pre-wrap">
                         {JSON.stringify(selectedMonitorData.differences, null, 2)}
                       </pre>
                     </motion.div>
@@ -388,6 +396,7 @@ function App() {
       </motion.div>
     </div>
   );
+  
 }
 
 export default App;
