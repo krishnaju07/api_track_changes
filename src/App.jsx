@@ -1,19 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'react-hot-toast';
-import {
-  FaPlay,
-  FaStop,
-  FaPlus,
-  FaTrash,
-  FaClock,
-  FaLink,
-} from 'react-icons/fa';
+import { FaPlay, FaStop, FaPlus, FaTrash, FaClock, FaLink } from 'react-icons/fa';
 import './App.css';
 
 function App() {
   const [monitors, setMonitors] = useState([]);
   const [selectedMonitor, setSelectedMonitor] = useState(null);
+  const [intervals, setIntervals] = useState({});
 
   useEffect(() => {
     // Load saved monitors from localStorage
@@ -28,6 +22,18 @@ function App() {
     localStorage.setItem('apiMonitors', JSON.stringify(monitors));
   }, [monitors]);
 
+  // Cleanup function for intervals
+  const clearMonitorInterval = (monitorId) => {
+    if (intervals[monitorId]) {
+      clearInterval(intervals[monitorId]);
+      setIntervals(prev => {
+        const newIntervals = { ...prev };
+        delete newIntervals[monitorId];
+        return newIntervals;
+      });
+    }
+  };
+
   const addNewMonitor = () => {
     const newMonitor = {
       id: Date.now().toString(),
@@ -37,24 +43,30 @@ function App() {
       interval: 30,
       isRunning: false,
       previousData: null,
-      differences: null,
+      differences: null
     };
     setMonitors([...monitors, newMonitor]);
     setSelectedMonitor(newMonitor.id);
   };
 
   const updateMonitor = (id, updates) => {
-    setMonitors((prevMonitors) =>
-      prevMonitors.map((monitor) =>
-        monitor.id === id ? { ...monitor, ...updates } : monitor
-      )
+    setMonitors(prevMonitors =>
+      prevMonitors.map(monitor => {
+        if (monitor.id === id) {
+          // If we're updating the interval or stopping the monitor, cleanup the existing interval
+          if ('interval' in updates || ('isRunning' in updates && !updates.isRunning)) {
+            clearMonitorInterval(id);
+          }
+          return { ...monitor, ...updates };
+        }
+        return monitor;
+      })
     );
   };
 
   const deleteMonitor = (id) => {
-    setMonitors((prevMonitors) =>
-      prevMonitors.filter((monitor) => monitor.id !== id)
-    );
+    clearMonitorInterval(id);
+    setMonitors(prevMonitors => prevMonitors.filter(monitor => monitor.id !== id));
     if (selectedMonitor === id) {
       setSelectedMonitor(null);
     }
@@ -63,21 +75,21 @@ function App() {
   const extractRelevantData = (data, id) => {
     if (data && data.queues) {
       if (id) {
-        return data.queues.find((queue) => queue.name === id);
+        return data.queues.find(queue => queue.name === id);
       }
       return data.queues;
     }
 
     if (Array.isArray(data)) {
       if (id) {
-        return data.find((item) => item.id === id || item.name === id);
+        return data.find(item => item.id === id || item.name === id);
       }
       return data;
     }
 
     if (typeof data === 'object' && data !== null) {
       if (id) {
-        return data.id === id || data.name === id ? data : null;
+        return (data.id === id || data.name === id) ? data : null;
       }
       return data;
     }
@@ -104,23 +116,21 @@ function App() {
 
       const response = await fetch(monitor.apiUrl, {
         headers: {
-          Accept: '*/*',
-        },
+          'Accept': '*/*',
+        }
       });
-
+      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       let data;
       const text = await response.text();
-
+      
       try {
         data = JSON.parse(text);
       } catch (e) {
-        const match = text.match(
-          /window\.queueFair\.settings\s*=\s*({[\s\S]*?});/
-        );
+        const match = text.match(/window\.queueFair\.settings\s*=\s*({[\s\S]*?});/);
         if (match) {
           try {
             data = JSON.parse(match[1]);
@@ -140,9 +150,7 @@ function App() {
       }
 
       const currentSlug = getSlugFromData(relevantData);
-      const previousSlug = monitor.previousData
-        ? getSlugFromData(monitor.previousData)
-        : null;
+      const previousSlug = monitor.previousData ? getSlugFromData(monitor.previousData) : null;
 
       if (monitor.previousData && currentSlug !== previousSlug) {
         const difference = {
@@ -150,13 +158,13 @@ function App() {
           url: `${monitor.apiUrl}/${currentSlug}`,
           slug_difference: {
             previous: previousSlug,
-            current: currentSlug,
-          },
+            current: currentSlug
+          }
         };
-
+        
         updateMonitor(monitor.id, {
           differences: difference,
-          previousData: relevantData,
+          previousData: relevantData
         });
         toast.success(`Changes detected in ${monitor.name}!`);
       } else {
@@ -165,34 +173,38 @@ function App() {
     } catch (error) {
       toast.error(`Error in ${monitor.name}: ${error.message}`);
       console.error('Error:', error);
+      // Don't stop the monitor on error, let it continue trying
+    }
+  };
+
+  // Handle starting/stopping monitors
+  const toggleMonitor = (monitor) => {
+    if (!monitor.isRunning) {
+      // Start the monitor
+      fetchData(monitor); // Initial fetch
+      const intervalId = setInterval(() => fetchData(monitor), monitor.interval * 1000);
+      setIntervals(prev => ({ ...prev, [monitor.id]: intervalId }));
+      updateMonitor(monitor.id, { isRunning: true });
+    } else {
+      // Stop the monitor
+      clearMonitorInterval(monitor.id);
       updateMonitor(monitor.id, { isRunning: false });
     }
   };
 
+  // Cleanup intervals on unmount
   useEffect(() => {
-    const intervals = {};
-
-    monitors.forEach((monitor) => {
-      if (monitor.isRunning) {
-        fetchData(monitor);
-        intervals[monitor.id] = setInterval(
-          () => fetchData(monitor),
-          monitor.interval * 1000
-        );
-      }
-    });
-
     return () => {
-      Object.values(intervals).forEach((interval) => clearInterval(interval));
+      Object.keys(intervals).forEach(clearMonitorInterval);
     };
-  }, [monitors]);
+  }, []);
 
-  const selectedMonitorData = monitors.find((m) => m.id === selectedMonitor);
+  const selectedMonitorData = monitors.find(m => m.id === selectedMonitor);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-8">
       <Toaster position="top-right" />
-
+      
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -200,7 +212,7 @@ function App() {
       >
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-            API Monitor
+            API Monitor Pro
           </h1>
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -218,7 +230,7 @@ function App() {
             <h2 className="text-xl font-semibold mb-4">Monitors</h2>
             <div className="space-y-2">
               <AnimatePresence>
-                {monitors.map((monitor) => (
+                {monitors.map(monitor => (
                   <motion.div
                     key={monitor.id}
                     initial={{ opacity: 0, x: -20 }}
@@ -257,11 +269,7 @@ function App() {
                   <input
                     type="text"
                     value={selectedMonitorData.name}
-                    onChange={(e) =>
-                      updateMonitor(selectedMonitorData.id, {
-                        name: e.target.value,
-                      })
-                    }
+                    onChange={(e) => updateMonitor(selectedMonitorData.id, { name: e.target.value })}
                     className="text-2xl font-bold bg-transparent border-none focus:outline-none"
                   />
                   <motion.button
@@ -283,11 +291,7 @@ function App() {
                       <input
                         type="text"
                         value={selectedMonitorData.apiUrl}
-                        onChange={(e) =>
-                          updateMonitor(selectedMonitorData.id, {
-                            apiUrl: e.target.value,
-                          })
-                        }
+                        onChange={(e) => updateMonitor(selectedMonitorData.id, { apiUrl: e.target.value })}
                         className="w-full bg-gray-700 rounded-lg p-3 focus:ring-2 focus:ring-blue-500"
                         placeholder="https://api.example.com/endpoint"
                       />
@@ -296,17 +300,11 @@ function App() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">
-                        ID/Name Filter (Optional)
-                      </label>
+                      <label className="block text-sm font-medium mb-2">ID/Name Filter (Optional)</label>
                       <input
                         type="text"
                         value={selectedMonitorData.filterId}
-                        onChange={(e) =>
-                          updateMonitor(selectedMonitorData.id, {
-                            filterId: e.target.value,
-                          })
-                        }
+                        onChange={(e) => updateMonitor(selectedMonitorData.id, { filterId: e.target.value })}
                         className="w-full bg-gray-700 rounded-lg p-3 focus:ring-2 focus:ring-blue-500"
                         placeholder="Enter ID or name to filter"
                       />
@@ -319,11 +317,7 @@ function App() {
                       <input
                         type="number"
                         value={selectedMonitorData.interval}
-                        onChange={(e) =>
-                          updateMonitor(selectedMonitorData.id, {
-                            interval: parseInt(e.target.value, 10),
-                          })
-                        }
+                        onChange={(e) => updateMonitor(selectedMonitorData.id, { interval: parseInt(e.target.value, 10) })}
                         className="w-full bg-gray-700 rounded-lg p-3 focus:ring-2 focus:ring-blue-500"
                         min="1"
                       />
@@ -333,11 +327,7 @@ function App() {
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() =>
-                      updateMonitor(selectedMonitorData.id, {
-                        isRunning: !selectedMonitorData.isRunning,
-                      })
-                    }
+                    onClick={() => toggleMonitor(selectedMonitorData)}
                     className={`w-full p-4 rounded-lg flex items-center justify-center space-x-2 ${
                       selectedMonitorData.isRunning
                         ? 'bg-red-500 hover:bg-red-600'
@@ -361,15 +351,9 @@ function App() {
                       animate={{ opacity: 1 }}
                       className="mt-8 p-4 bg-gray-700 rounded-lg"
                     >
-                      <h2 className="text-xl font-semibold mb-4">
-                        Latest Change Detected
-                      </h2>
+                      <h2 className="text-xl font-semibold mb-4">Latest Change Detected</h2>
                       <pre className="whitespace-pre-wrap overflow-x-auto">
-                        {JSON.stringify(
-                          selectedMonitorData.differences,
-                          null,
-                          2
-                        )}
+                        {JSON.stringify(selectedMonitorData.differences, null, 2)}
                       </pre>
                     </motion.div>
                   )}
