@@ -93,7 +93,7 @@ function App() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-            API Monitor Pro
+            API Monitor
           </h1>
           <motion.button
             whileHover={{ scale: 1.05 }}
