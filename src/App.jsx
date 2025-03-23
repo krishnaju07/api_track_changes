@@ -72,11 +72,26 @@ function App() {
 
   const deleteMonitor = (id) => {
     clearMonitorInterval(id);
-    setMonitors(prevMonitors => prevMonitors.filter(monitor => monitor.id !== id));
-    if (selectedMonitor === id) {
-      setSelectedMonitor(null);
-    }
+  
+    setMonitors((prevMonitors) => {
+      const index = prevMonitors.findIndex((monitor) => monitor.id === id);
+      const updatedMonitors = prevMonitors.filter((monitor) => monitor.id !== id);
+  
+      // Select next monitor logic
+      if (updatedMonitors.length > 0) {
+        if (index < updatedMonitors.length) {
+          setSelectedMonitor(updatedMonitors[index].id); // Select next monitor
+        } else {
+          setSelectedMonitor(updatedMonitors[updatedMonitors.length - 1].id); // Select previous if last was deleted
+        }
+      } else {
+        setSelectedMonitor(null); // No monitors left
+      }
+  
+      return updatedMonitors;
+    });
   };
+  
 
   const extractRelevantData = (data, id) => {
     if (data && data.queues) {
